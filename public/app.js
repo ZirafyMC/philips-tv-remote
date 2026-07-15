@@ -1,4 +1,4 @@
-// --- Philips Smart TV Web Remote - Frontend Logic (100% Client-Side) ---
+// --- Philips Smart TV Web Remote - Frontend Logic (Hybrid PC/APK Client-Side) ---
 
 // Elementos del DOM
 const elStatusBadge = document.getElementById('status-badge');
@@ -21,7 +21,7 @@ const scanResultsContainer = document.getElementById('scan-results-container');
 const scanResultsList = document.getElementById('scan-results-list');
 const scanBtnText = document.getElementById('scan-btn-text');
 
-// Emparejamiento (Mantenido por compatibilidad de UI, oculto por defecto ya que authRequired=false)
+// Emparejamiento (Mantenido por compatibilidad de UI, oculto por defecto)
 const cardPairing = document.getElementById('card-pairing');
 const btnRequestPairing = document.getElementById('btn-request-pairing');
 const pairingStep1 = document.getElementById('pairing-step-1');
@@ -32,6 +32,11 @@ const btnSubmitPin = document.getElementById('btn-submit-pin');
 // Teclado Numérico
 const btnToggleNum = document.getElementById('btn-toggle-num');
 const numericKeypad = document.getElementById('numeric-keypad');
+
+// TV Keyboard Input
+const tvKeyboardInput = document.getElementById('tv-keyboard-input');
+const btnKeyboardSend = document.getElementById('btn-keyboard-send');
+const btnKeyboardClear = document.getElementById('btn-keyboard-clear');
 
 // Ambilight
 const btnAmbVideo = document.getElementById('amb-video');
@@ -61,6 +66,11 @@ let appState = {
 let activeChannel = null;
 let cachedChannels = [];
 
+// Detectar si la app corre servida desde el backend de la PC o de forma local/APK
+function checkIsLocalServer() {
+  return window.location.port === '3000' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
@@ -69,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSettingsListeners();
   initAmbilightListeners();
   initGuideListeners();
+  initKeyboardInputListeners();
 });
 
 // Función de vibración haptica (feedback táctil)
@@ -103,8 +114,32 @@ function navigateToTab(tabId) {
   }
 }
 
-// Comprobar estado de configuración local (localStorage)
-function checkStatus() {
+// Comprobar estado de configuración
+async function checkStatus() {
+  const isLocalServer = checkIsLocalServer();
+  
+  if (isLocalServer) {
+    try {
+      const res = await fetch('/api/status');
+      const status = await res.json();
+      appState = status;
+      if (status.configured) {
+        inputIp.value = status.ip;
+        selectVersion.value = status.apiVersion;
+        inputPort.value = status.port;
+        updateStatusUI();
+        fetchCurrentChannel();
+      } else {
+        updateStatusUI();
+        navigateToTab('tab-settings');
+      }
+      return;
+    } catch (err) {
+      console.warn('Fallo al conectar al backend local, usando localStorage como fallback:', err);
+    }
+  }
+  
+  // Modo APK / Standalone: usar localStorage
   const ip = localStorage.getItem('tv_ip');
   const port = localStorage.getItem('tv_port');
   const apiVersion = localStorage.getItem('tv_api_version');
@@ -132,13 +167,31 @@ function checkStatus() {
   }
 }
 
-// Consultar canal actual directamente desde la TV
+// Consultar canal actual directamente desde la TV o a través del backend
 async function fetchCurrentChannel() {
   if (!appState.configured) return;
+  const isLocalServer = checkIsLocalServer();
+
+  if (isLocalServer) {
+    try {
+      const res = await fetch('/api/channels/current');
+      if (res.status === 200) {
+        const rawData = await res.json();
+        if (rawData.channel) {
+          activeChannel = rawData.channel;
+          updateStatusUI();
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Fallo al obtener canal actual mediante el backend:', e);
+    }
+  }
+
+  // Llamada directa (Modo APK o fallback)
   const apiVersion = appState.apiVersion;
   const ip = appState.ip;
   const port = appState.port;
-  
   const endpoints = [
     `http://${ip}:${port}/${apiVersion}/activities/tv`,
     `http://${ip}:${port}/${apiVersion}/channels/current`
@@ -197,13 +250,6 @@ function updateStatusIndicator(stateClass, text) {
   elStatusText.textContent = text;
 }
 
-// Reset del panel de emparejamiento (mantenido por UI)
-function resetPairingUI() {
-  pairingStep1.classList.remove('hidden');
-  pairingStep2.classList.add('hidden');
-  inputPin.value = '';
-}
-
 // Inicializar botones del control remoto
 function initRemoteButtons() {
   document.querySelectorAll('[data-key]').forEach(btn => {
@@ -225,15 +271,30 @@ function initRemoteButtons() {
         return;
       }
 
-      try {
-        const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key })
-        });
-      } catch (err) {
-        console.error('Error de red al enviar comando a la TV:', err);
+      const isLocalServer = checkIsLocalServer();
+
+      if (isLocalServer) {
+        try {
+          await fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+          });
+        } catch (err) {
+          console.error('Error al enviar comando mediante backend:', err);
+        }
+      } else {
+        // Llamada directa
+        try {
+          const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+          await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+          });
+        } catch (err) {
+          console.error('Error de red al enviar comando a la TV:', err);
+        }
       }
     });
   });
@@ -247,7 +308,6 @@ function toggleNumericKeypad() {
 
 // Inicializar lógica de Configuración y Escaneo
 function initSettingsListeners() {
-  // Guardar configuración manual
   formConfig.addEventListener('submit', async (e) => {
     e.preventDefault();
     triggerHaptic();
@@ -259,7 +319,6 @@ function initSettingsListeners() {
     await connectToTv(ip, port, apiVersion);
   });
 
-  // Ajustar puerto automáticamente según versión de API seleccionada
   selectVersion.addEventListener('change', () => {
     if (selectVersion.value === '6') {
       inputPort.value = '1926';
@@ -268,7 +327,6 @@ function initSettingsListeners() {
     }
   });
 
-  // Escaneo de red directamente desde el cliente
   btnScan.addEventListener('click', async () => {
     triggerHaptic();
     btnScan.disabled = true;
@@ -278,8 +336,31 @@ function initSettingsListeners() {
     scanResultsContainer.classList.add('hidden');
     scanResultsList.innerHTML = '';
 
+    const isLocalServer = checkIsLocalServer();
+
+    if (isLocalServer) {
+      try {
+        const res = await fetch('/api/scan');
+        const data = await res.json();
+        
+        scanLoading.classList.add('hidden');
+        btnScan.disabled = false;
+        scanBtnText.textContent = "Buscar en mi red";
+        btnScan.querySelector('svg').classList.remove('icon-spin');
+
+        if (data.tvs && data.tvs.length > 0) {
+          renderScanResults(data.tvs);
+        } else {
+          alert('No se encontraron televisores Philips encendidos en la red local.');
+        }
+        return;
+      } catch (err) {
+        console.warn('Fallo escaneo de backend, usando escaneo de cliente:', err);
+      }
+    }
+
+    // Escaneo en modo APK / Client-side
     try {
-      // Intentar escanear subredes más habituales
       let subnets = ['192.168.0', '192.168.1', '192.168.8'];
       const tvIp = inputIp.value.trim() || localStorage.getItem('tv_ip');
       if (tvIp) {
@@ -301,7 +382,6 @@ function initSettingsListeners() {
           for (let j = 0; j < maxParallel && (i + j) <= 254; j++) {
             const targetIp = `${subnet}.${i+j}`;
             promises.push((async () => {
-              // Intentar en puertos comunes 1925 y 1926
               for (const port of [1925, 1926]) {
                 const protocol = port === 1926 ? 'https' : 'http';
                 for (const ver of [6, 1]) {
@@ -338,30 +418,9 @@ function initSettingsListeners() {
       btnScan.querySelector('svg').classList.remove('icon-spin');
 
       if (foundTvs.length > 0) {
-        foundTvs.forEach(tv => {
-          const li = document.createElement('li');
-          li.className = 'device-item';
-          li.innerHTML = `
-            <div class="device-info">
-              <span class="device-name">${tv.name}</span>
-              <span class="device-ip">${tv.ip}:${tv.port}</span>
-            </div>
-            <span class="device-badge ${tv.apiVersion === 1 ? 'v1' : ''}">API v${tv.apiVersion}</span>
-          `;
-          
-          li.addEventListener('click', async () => {
-            triggerHaptic();
-            inputIp.value = tv.ip;
-            selectVersion.value = tv.apiVersion;
-            inputPort.value = tv.port;
-            await connectToTv(tv.ip, tv.port, tv.apiVersion);
-          });
-
-          scanResultsList.appendChild(li);
-        });
-        scanResultsContainer.classList.remove('hidden');
+        renderScanResults(foundTvs);
       } else {
-        alert('No se encontraron televisores Philips encendidos en la red local. Verifica la IP e ingrésala manualmente.');
+        alert('No se encontraron televisores Philips encendidos en la red local.');
       }
     } catch (err) {
       console.error(err);
@@ -373,7 +432,6 @@ function initSettingsListeners() {
     }
   });
 
-  // Funciones de emparejamiento (desactivadas en client-side puro, mantenidas para compatibilidad visual)
   btnRequestPairing.addEventListener('click', () => {
     alert('Emparejamiento no requerido para esta configuración.');
   });
@@ -382,8 +440,58 @@ function initSettingsListeners() {
   });
 }
 
-// Guardar IP y probar conexión
+function renderScanResults(tvs) {
+  scanResultsList.innerHTML = '';
+  tvs.forEach(tv => {
+    const li = document.createElement('li');
+    li.className = 'device-item';
+    li.innerHTML = `
+      <div class="device-info">
+        <span class="device-name">${tv.name}</span>
+        <span class="device-ip">${tv.ip}:${tv.port}</span>
+      </div>
+      <span class="device-badge ${tv.apiVersion === 1 ? 'v1' : ''}">API v${tv.apiVersion}</span>
+    `;
+    
+    li.addEventListener('click', async () => {
+      triggerHaptic();
+      inputIp.value = tv.ip;
+      selectVersion.value = tv.apiVersion;
+      inputPort.value = tv.port;
+      await connectToTv(tv.ip, tv.port, tv.apiVersion);
+    });
+
+    scanResultsList.appendChild(li);
+  });
+  scanResultsContainer.classList.remove('hidden');
+}
+
+// Probar conexión y guardar configuración
 async function connectToTv(ip, port, apiVersion) {
+  const isLocalServer = checkIsLocalServer();
+
+  if (isLocalServer) {
+    try {
+      const res = await fetch('/api/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, port, apiVersion })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await checkStatus();
+        alert(`¡Conectado con éxito a la TV!`);
+        navigateToTab('tab-control');
+      } else {
+        alert('No se pudo conectar: ' + data.error);
+      }
+      return;
+    } catch (err) {
+      console.warn('Fallo al conectar con el backend local, intentando directo...', err);
+    }
+  }
+
+  // Conexión Directa (APK)
   try {
     const protocol = port === 1926 ? 'https' : 'http';
     const url = `${protocol}://${ip}:${port}/${apiVersion}/system`;
@@ -475,39 +583,73 @@ function setActiveAmbModeButton(activeBtn) {
 async function setAmbilightMode(modePayload) {
   triggerHaptic();
   if (!appState.configured) return;
-  try {
-    const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/mode`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(modePayload)
-    });
-    return await res.json();
-  } catch (err) {
-    console.error('Error al cambiar modo Ambilight:', err);
+
+  const isLocalServer = checkIsLocalServer();
+
+  if (isLocalServer) {
+    try {
+      const res = await fetch('/api/ambilight/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(modePayload)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error al cambiar modo Ambilight mediante backend:', err);
+    }
+  } else {
+    // Direct call
+    try {
+      const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/mode`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(modePayload)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error al cambiar modo Ambilight:', err);
+    }
   }
 }
 
 async function setAmbilightColor(r, g, b) {
   if (!appState.configured) return;
-  try {
-    const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/cached`;
-    const payload = {
-      layer1: {
-        left: { '0': { r, g, b } },
-        right: { '0': { r, g, b } },
-        top: { '0': { r, g, b } },
-        bottom: { '0': { r, g, b } }
-      }
-    };
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return await res.json();
-  } catch (err) {
-    console.error('Error al cambiar color Ambilight:', err);
+
+  const isLocalServer = checkIsLocalServer();
+
+  if (isLocalServer) {
+    try {
+      const res = await fetch('/api/ambilight/color', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ r, g, b })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error al cambiar color Ambilight mediante backend:', err);
+    }
+  } else {
+    // Direct call
+    try {
+      const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/cached`;
+      const payload = {
+        layer1: {
+          left: { '0': { r, g, b } },
+          right: { '0': { r, g, b } },
+          top: { '0': { r, g, b } },
+          bottom: { '0': { r, g, b } }
+        }
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error al cambiar color Ambilight:', err);
+    }
   }
 }
 
@@ -555,6 +697,29 @@ async function openChannelsGuide() {
     }
 
     if (cachedChannels.length === 0) {
+      const isLocalServer = checkIsLocalServer();
+
+      if (isLocalServer) {
+        try {
+          const res = await fetch('/api/channels');
+          if (res.status === 200) {
+            const data = await res.json();
+            if (data.channels && data.channels.length > 0) {
+              cachedChannels = data.channels.map(ch => ({
+                ccid: ch.ccid || '',
+                name: ch.name || '',
+                preset: ch.preset !== undefined ? String(ch.preset) : ''
+              }));
+              renderChannelsGuide();
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Fallo al obtener canales desde backend local, intentando directo...', e);
+        }
+      }
+
+      // Obtener directamente de la TV (Modo APK o fallback)
       const apiVersion = appState.apiVersion;
       const ip = appState.ip;
       const port = appState.port;
@@ -648,6 +813,31 @@ function renderChannelsGuide() {
       triggerHaptic();
       guideDrawer.classList.add('hidden');
       
+      const isLocalServer = checkIsLocalServer();
+
+      if (isLocalServer) {
+        try {
+          const res = await fetch('/api/channels/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ccid: ch.ccid,
+              preset: ch.preset,
+              name: ch.name
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            activeChannel = ch;
+            updateStatusUI();
+            return;
+          }
+        } catch (e) {
+          console.warn('Fallo al sintonizar mediante backend, intentando directo...', e);
+        }
+      }
+
+      // Cambio directo (Modo APK o fallback)
       try {
         const apiVersion = appState.apiVersion;
         const ip = appState.ip;
@@ -663,9 +853,7 @@ function renderChannelsGuide() {
                 preset: ch.preset ? parseInt(ch.preset) : undefined,
                 name: ch.name || undefined
               },
-              channelList: {
-                id: 'all'
-              }
+              channelList: { id: 'all' }
             };
             const res = await fetch(url, {
               method: 'POST',
@@ -676,16 +864,14 @@ function renderChannelsGuide() {
               success = true;
             }
           } catch(e) {
-            console.warn('Fallo sintonización v6:', e);
+            console.warn('Fallo sintonización directa v6:', e);
           }
         }
 
         if (!success) {
           const url = `http://${ip}:${port}/1/channels/current`;
           const payload = {
-            channel: {
-              ccid: parseInt(ch.ccid) || ch.ccid
-            }
+            channel: { ccid: parseInt(ch.ccid) || ch.ccid }
           };
           const res = await fetch(url, {
             method: 'POST',
@@ -704,7 +890,7 @@ function renderChannelsGuide() {
           alert('No se pudo cambiar al canal.');
         }
       } catch (e) {
-        console.error('Error al sintonizar canal:', e);
+        console.error('Error al sintonizar canal directamente:', e);
         alert('Error de red al sintonizar canal');
       }
     });
@@ -720,4 +906,105 @@ function renderChannelsGuide() {
       activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 100);
+}
+
+// --- Lógica del teclado de texto para la TV ---
+function initKeyboardInputListeners() {
+  if (!btnKeyboardSend || !tvKeyboardInput || !btnKeyboardClear) return;
+  
+  btnKeyboardSend.addEventListener('click', async () => {
+    triggerHaptic();
+    const text = tvKeyboardInput.value.trim();
+    if (!text) return;
+    
+    btnKeyboardSend.disabled = true;
+    btnKeyboardSend.textContent = "Enviando...";
+    
+    await sendTextToTv(text);
+    
+    tvKeyboardInput.value = '';
+    btnKeyboardSend.disabled = false;
+    btnKeyboardSend.textContent = "Enviar";
+  });
+  
+  // Enviar texto al presionar Enter en el móvil
+  tvKeyboardInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      btnKeyboardSend.click();
+    }
+  });
+  
+  btnKeyboardClear.addEventListener('click', async () => {
+    triggerHaptic();
+    
+    if (tvKeyboardInput.value.length > 0) {
+      tvKeyboardInput.value = tvKeyboardInput.value.slice(0, -1);
+    }
+    
+    // Enviar tecla de borrar (Back) a la TV
+    try {
+      const isLocalServer = checkIsLocalServer();
+      const key = 'Back';
+      if (isLocalServer) {
+        await fetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+      } else {
+        const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+      }
+    } catch(err) {
+      console.warn('Error al borrar carácter en la TV:', err);
+    }
+  });
+}
+
+// Enviar texto letra a letra a la TV con delay
+async function sendTextToTv(text) {
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    let key = char;
+    
+    if (char === ' ') {
+      key = 'Space';
+    } else if (char === '.') {
+      key = 'Dot';
+    }
+    
+    if (/[a-zA-Z]/.test(char)) {
+      key = char.toUpperCase();
+    } else if (/[0-9]/.test(char)) {
+      key = `Digit${char}`;
+    }
+
+    try {
+      const isLocalServer = checkIsLocalServer();
+      if (isLocalServer) {
+        await fetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+      } else {
+        const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+      }
+    } catch(err) {
+      console.warn('Fallo al enviar carácter a la TV:', err);
+    }
+    
+    // Retraso de 150ms entre caracteres para dar tiempo a la TV a procesarlos sin perder letras
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
 }

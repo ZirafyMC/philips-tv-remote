@@ -325,8 +325,8 @@ body {
 }
 
 .btn-icon {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
 }
 
@@ -349,11 +349,11 @@ body {
 
 .btn-secondary {
   flex: 1;
-  height: 50px;
+  height: 54px;
   flex-direction: column;
   gap: 3px;
-  font-size: 0.68rem;
-  font-weight: 400;
+  font-size: 0.72rem;
+  font-weight: 500;
   color: var(--text-secondary);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.02);
@@ -381,8 +381,8 @@ body {
 
 .dpad {
   position: relative;
-  width: 170px;
-  height: 170px;
+  width: 195px;
+  height: 195px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(22, 22, 42, 0.1) 30%, rgba(255, 255, 255, 0.02) 100%);
   border: 1px solid var(--panel-border);
@@ -415,29 +415,29 @@ body {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 50px;
-  height: 42px;
+  width: 60px;
+  height: 50px;
 }
 .dpad-down {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 50px;
-  height: 42px;
+  width: 60px;
+  height: 50px;
 }
 .dpad-left {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 42px;
-  height: 50px;
+  width: 50px;
+  height: 60px;
 }
 .dpad-right {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 42px;
-  height: 50px;
+  width: 50px;
+  height: 60px;
 }
 
 .dpad-ok {
@@ -445,14 +445,14 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 62px;
-  height: 62px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(35, 35, 60, 0.95) 0%, rgba(15, 15, 25, 0.95) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
@@ -474,9 +474,9 @@ body {
   flex-direction: column;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--panel-border);
-  border-radius: 26px;
-  width: 54px;
-  height: 115px;
+  border-radius: 28px;
+  width: 60px;
+  height: 126px;
   overflow: hidden;
   box-shadow: 0 6px 12px rgba(0,0,0,0.25);
 }
@@ -514,8 +514,8 @@ body {
 }
 
 .btn-circle {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1224,5 +1224,55 @@ body {
 .guide-body::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
+}
+
+/* TV Keyboard Input Row styling */
+.tv-keyboard-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin: 6px 0;
+}
+
+.tv-keyboard-input {
+  flex: 2;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-primary);
+  padding: 0 14px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.tv-keyboard-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.btn-keyboard-send {
+  flex: 0.8;
+  height: 48px !important;
+  font-weight: 600;
+  background: rgba(0, 198, 255, 0.08) !important;
+  border-color: rgba(0, 198, 255, 0.2) !important;
+  color: #00c6ff !important;
+}
+
+.btn-keyboard-send:active {
+  background: #00c6ff !important;
+  color: white !important;
+  transform: scale(0.95);
+}
+
+.btn-keyboard-clear {
+  width: 48px;
+  height: 48px !important;
+  flex: none !important;
 }
 
