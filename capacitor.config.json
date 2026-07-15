@@ -1,0 +1,13 @@
+{
+  "appId": "com.philipstv.remote",
+  "appName": "Philips TV Remote",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "http"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

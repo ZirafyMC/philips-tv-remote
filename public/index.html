@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d1e">
+  <title>Philips TV Smart Remote</title>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=12">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="logo-dot"></span>
+        <h1>Philips TV Remote</h1>
+      </div>
+      <div id="status-badge" class="status-badge disconnected">
+        <span class="status-indicator"></span>
+        <span class="status-text">Sin conectar</span>
+      </div>
+    </header>
+
+    <!-- Main Content (Tabs Content) -->
+    <main class="app-content">
+      
+      <!-- Tab 1: Remote Control -->
+      <section id="tab-control" class="tab-panel active">
+        <div class="remote-grid">
+          
+          <!-- Top Row: Source, Mute & Power (Symmetrical) -->
+          <div class="remote-row top-controls">
+            <button class="btn btn-circle" data-key="Source" title="Fuentes / Inputs">
+              <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7H9v6h2v-6zm4-3h-2v9h2V9zm4 5h-2v4h2v-4z"/></svg>
+            </button>
+            <button class="btn btn-circle" data-key="Mute" title="Silenciar">
+              <svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM12 4L9.91 6.09 12 8.18V4zm-7.7 2.81L2.81 8.3 6.51 12H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.03c1.38-.31 2.63-.95 3.69-1.81l2.5 2.5 1.41-1.41L4.3 6.81zM12 14.5c.01 0 0 0 0 0z"/></svg>
+            </button>
+            <button class="btn btn-circle btn-power" data-key="Power" title="Encendido / Apagado">
+              <svg viewBox="0 0 24 24"><path d="M16.56 5.44l-1.45 1.45C16.84 7.94 18 9.83 18 12c0 3.31-2.69 6-6 6s-6-2.69-6-6c0-2.17 1.16-4.06 2.88-5.12L7.44 5.44C5.36 6.88 4 9.28 4 12c0 4.42 3.58 8 8 8s8-3.58 8-8c0-2.72-1.36-5.12-3.44-6.56zM13 3h-2v10h2V3z"/></svg>
+            </button>
+          </div>
+
+          <!-- D-Pad (Navigation) -->
+          <div class="dpad-container">
+            <div class="dpad">
+              <button class="dpad-btn dpad-up" data-key="CursorUp" title="Arriba">
+                <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5H7z"/></svg>
+              </button>
+              <button class="dpad-btn dpad-left" data-key="CursorLeft" title="Izquierda">
+                <svg viewBox="0 0 24 24"><path d="M14 17l-5-5 5-5v10z"/></svg>
+              </button>
+              <button class="dpad-btn dpad-ok" data-key="Confirm" title="Aceptar / OK">
+                <span>OK</span>
+              </button>
+              <button class="dpad-btn dpad-right" data-key="CursorRight" title="Derecha">
+                <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5v10z"/></svg>
+              </button>
+              <button class="dpad-btn dpad-down" data-key="CursorDown" title="Abajo">
+                <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Navigation Rows: Back, Options, Home, Info -->
+          <div class="remote-row nav-controls">
+            <button class="btn btn-secondary" data-key="Back">
+              <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+              <span>Atrás</span>
+            </button>
+            <button class="btn btn-secondary" data-key="Options">
+              <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+              <span>Opción</span>
+            </button>
+            <button class="btn btn-secondary" data-key="Home">
+              <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+              <span>Inicio</span>
+            </button>
+            <button class="btn btn-secondary" data-key="Info">
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              <span>Info</span>
+            </button>
+          </div>
+
+          <!-- Volume & Channel Control (Vertical Pill sliders style) -->
+          <div class="remote-row control-pills">
+            <div class="pill-group">
+              <button class="btn btn-pill-top" data-key="VolumeUp" title="Volumen +">+</button>
+              <div class="pill-label">VOL</div>
+              <button class="btn btn-pill-bottom" data-key="VolumeDown" title="Volumen -">-</button>
+            </div>
+            
+            <div class="center-aux">
+              <button class="btn btn-circle btn-guide" id="btn-show-guide" title="Guía de Canales (EPG)">
+                GUÍA
+              </button>
+              <button class="btn btn-circle toggle-num" id="btn-toggle-num" title="Teclado Numérico">
+                123
+              </button>
+            </div>
+
+            <div class="pill-group">
+              <button class="btn btn-pill-top" data-key="ChannelStepUp" title="Canal +">▲</button>
+              <div class="pill-label">CH</div>
+              <button class="btn btn-pill-bottom" data-key="ChannelStepDown" title="Canal -">▼</button>
+            </div>
+          </div>
+
+          <!-- Numeric Keyboard (Accordion Drawer) -->
+          <div id="numeric-keypad" class="numeric-keypad hidden">
+            <div class="num-row">
+              <button class="btn btn-num" data-key="Digit1">1</button>
+              <button class="btn btn-num" data-key="Digit2">2</button>
+              <button class="btn btn-num" data-key="Digit3">3</button>
+            </div>
+            <div class="num-row">
+              <button class="btn btn-num" data-key="Digit4">4</button>
+              <button class="btn btn-num" data-key="Digit5">5</button>
+              <button class="btn btn-num" data-key="Digit6">6</button>
+            </div>
+            <div class="num-row">
+              <button class="btn btn-num" data-key="Digit7">7</button>
+              <button class="btn btn-num" data-key="Digit8">8</button>
+              <button class="btn btn-num" data-key="Digit9">9</button>
+            </div>
+            <div class="num-row">
+              <button class="btn btn-num btn-num-empty"></button>
+              <button class="btn btn-num" data-key="Digit0">0</button>
+              <button class="btn btn-num btn-num-empty"></button>
+            </div>
+          </div>
+
+          <!-- Media Controls (Play, Pause, Stop) -->
+          <div class="remote-row media-controls">
+            <button class="btn btn-circle" data-key="Rewind" title="Retroceder">
+              <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+            </button>
+            <button class="btn btn-circle" data-key="Play" title="Reproducir">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button class="btn btn-circle" data-key="Pause" title="Pausar">
+              <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button class="btn btn-circle" data-key="Stop" title="Detener">
+              <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+            </button>
+            <button class="btn btn-circle" data-key="FastForward" title="Adelantar">
+              <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+            </button>
+          </div>
+
+          <!-- Color buttons row -->
+          <div class="remote-row color-buttons">
+            <button class="btn btn-color red" data-key="RedColour" title="Rojo"></button>
+            <button class="btn btn-color green" data-key="GreenColour" title="Verde"></button>
+            <button class="btn btn-color yellow" data-key="YellowColour" title="Amarillo"></button>
+            <button class="btn btn-color blue" data-key="BlueColour" title="Azul"></button>
+          </div>
+
+        </div>
+      </section>
+
+
+      <!-- Tab 2: Ambilight Settings -->
+      <section id="tab-ambilight" class="tab-panel">
+        <div class="panel-card">
+          <h2>Modos de Iluminación</h2>
+          <p class="section-desc">Selecciona cómo quieres que reaccione el sistema Ambilight de tu televisor.</p>
+          
+          <div class="ambilight-modes-grid">
+            <button class="btn btn-ambilight-mode active" id="amb-video">
+              <span class="amb-icon video-icon"></span>
+              <strong>Seguir Video</strong>
+              <span>Sincroniza con la pantalla</span>
+            </button>
+            <button class="btn btn-ambilight-mode" id="amb-audio">
+              <span class="amb-icon audio-icon"></span>
+              <strong>Seguir Audio</strong>
+              <span>Sincroniza con el sonido</span>
+            </button>
+            <button class="btn btn-ambilight-mode" id="amb-off">
+              <span class="amb-icon off-icon"></span>
+              <strong>Apagar</strong>
+              <span>Desactiva las luces</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h2>Color Estático (Manual)</h2>
+          <p class="section-desc">Establece un tono estático para crear un ambiente relajante.</p>
+          
+          <div class="color-presets">
+            <button class="btn preset-color" data-r="255" data-g="240" data-b="200" style="background: #fff8e7;" title="Cálido"></button>
+            <button class="btn preset-color" data-r="255" data-g="50" data-b="50" style="background: #ff3232;" title="Rojo Pasión"></button>
+            <button class="btn preset-color" data-r="50" data-g="255" data-b="50" style="background: #32ff32;" title="Verde Bosque"></button>
+            <button class="btn preset-color" data-r="0" data-g="120" data-b="255" style="background: #0078ff;" title="Azul Profundo"></button>
+            <button class="btn preset-color" data-r="230" data-g="0" data-b="255" style="background: #e600ff;" title="Violeta Ambilight"></button>
+            <button class="btn preset-color" data-r="255" data-g="120" data-b="0" style="background: #ff7800;" title="Atardecer Naranja"></button>
+          </div>
+
+          <div class="custom-color-picker">
+            <label for="color-picker-input">Selecciona un color personalizado:</label>
+            <div class="picker-container">
+              <input type="color" id="color-picker-input" value="#e600ff">
+              <button class="btn btn-primary" id="btn-apply-color">Aplicar Color</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- Tab 3: TV Connection & Config -->
+      <section id="tab-settings" class="tab-panel">
+        
+        <div class="panel-card">
+          <h2>Detección Automática</h2>
+          <p class="section-desc">Escanea tu red local para buscar televisores Philips encendidos.</p>
+          
+          <button class="btn btn-primary btn-full" id="btn-scan">
+            <span class="scan-icon-container">
+              <svg viewBox="0 0 24 24" class="icon-spin"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 9.17 4 10.53 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+            </span>
+            <span id="scan-btn-text">Buscar en mi red</span>
+          </button>
+
+          <div id="scan-loading" class="scan-loading hidden">
+            <div class="spinner"></div>
+            <span>Escaneando dispositivos en tu Wi-Fi...</span>
+          </div>
+
+          <div id="scan-results-container" class="scan-results hidden">
+            <h3>Dispositivos encontrados:</h3>
+            <ul id="scan-results-list" class="device-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h2>Configuración Manual</h2>
+          <form id="form-config" class="manual-form">
+            <div class="form-group">
+              <label for="input-ip">Dirección IP de la TV:</label>
+              <input type="text" id="input-ip" placeholder="Ej: 192.168.1.15" required>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="select-version">Versión API:</label>
+                <select id="select-version">
+                  <option value="6">API v6 (Android TV 2016+)</option>
+                  <option value="1">API v1 (TVs Antiguas)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="input-port">Puerto:</label>
+                <input type="number" id="input-port" value="1926">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-secondary btn-full">Guardar y Conectar</button>
+          </form>
+        </div>
+
+        <!-- Pairing Section (Only visible for API v6 when not paired) -->
+        <div id="card-pairing" class="panel-card hidden warning-card">
+          <h2>Emparejamiento Requerido</h2>
+          <p class="section-desc">Tu TV requiere una clave de emparejamiento segura para ser controlada.</p>
+          
+          <div id="pairing-step-1">
+            <p>1. Presiona el botón para mostrar un código PIN de 4 dígitos en la pantalla de tu televisor.</p>
+            <button class="btn btn-primary btn-full" id="btn-request-pairing">Mostrar PIN en mi TV</button>
+          </div>
+
+          <div id="pairing-step-2" class="hidden">
+            <p>2. Ingresa el código PIN mostrado en la pantalla de la TV:</p>
+            <div class="pin-input-container">
+              <input type="text" id="input-pin" maxlength="4" placeholder="0000" pattern="\d{4}">
+              <button class="btn btn-success" id="btn-submit-pin">Confirmar</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="app-navigation">
+      <button class="nav-tab active" data-target="tab-control">
+        <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7H9v6h2v-6zm4-3h-2v9h2V9zm4 5h-2v4h2v-4z"/></svg>
+        <span>Mando</span>
+      </button>
+      <button class="nav-tab" data-target="tab-ambilight">
+        <svg viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2s-2-.9-2-2V4c0-1.1.9-2 2-2zm0 14c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2s-2-.9-2-2v-2c0-1.1.9-2 2-2zm8-6c1.1 0 2 .9 2 2s-.9 2-2 2h-2c-1.1 0-2-.9-2-2s.9-2 2-2h2zM6 10c1.1 0 2 .9 2 2s-.9 2-2 2H4c-1.1 0-2-.9-2-2s.9-2 2-2h2zm11.22-3.8l1.42-1.42a1 1 0 1 1 1.41 1.41l-1.42 1.42a1 1 0 0 1-1.41-1.41zM5.38 18.62l1.42-1.42a1 1 0 1 1 1.41 1.41l-1.42 1.42a1 1 0 0 1-1.41-1.41zm11.84 0l-1.42-1.42a1 1 0 1 1 1.41-1.41l1.42 1.42a1 1 0 0 1-1.41 1.41zM6.8 5.38a1 1 0 0 1 1.41 0L6.8 6.8a1 1 0 0 1-1.41-1.41l1.41-1.41zM12 9c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z"/></svg>
+        <span>Ambilight</span>
+      </button>
+      <button class="nav-tab" data-target="tab-settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        <span>Ajustes</span>
+      </button>
+    </nav>
+
+    <!-- EPG Channel Guide Drawer -->
+    <div id="guide-drawer" class="guide-drawer hidden">
+      <div class="guide-header">
+        <div class="guide-handle"></div>
+        <div class="guide-title-row">
+          <h2>Guía de Canales</h2>
+          <button class="btn-close-guide" id="btn-close-guide" title="Cerrar Guía">&times;</button>
+        </div>
+        <div class="guide-current-status" id="guide-active-channel-info">
+          Canal actual: Sin sintonizar
+        </div>
+      </div>
+      <div class="guide-body">
+        <div id="guide-loading" class="guide-loading">
+          <div class="spinner"></div>
+          <span>Obteniendo lista de canales desde la TV...</span>
+        </div>
+        <ul id="guide-channels-list" class="guide-channels-list hidden">
+          <!-- Dynamically populated -->
+        </ul>
+      </div>
+    </div>
+
+  </div>
+  
+  <!-- Client JS logic -->
+  <script src="app.js?v=12"></script>
+</body>
+</html>

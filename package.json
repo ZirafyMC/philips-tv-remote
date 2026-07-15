@@ -1,0 +1,16 @@
+{
+  "name": "philips-tv-remote",
+  "version": "1.0.0",
+  "description": "Control remoto web móvil para Smart TVs Philips",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/core": "^8.4.2",
+    "express": "^4.19.2"
+  }
+}
