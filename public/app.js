@@ -1210,6 +1210,18 @@ async function sendTextToTv(text) {
 }
 
 // Teclado Fantasma (Navegación automática simulada para YouTube)
+const GHOST_VOWELS = [
+  [0, 0], // A
+  [0, 4], // E
+  [1, 1], // I
+  [2, 1], // O
+  [3, 0]  // U
+];
+
+function isGhostVowel(row, col) {
+  return GHOST_VOWELS.some(([r, c]) => r === row && c === col);
+}
+
 async function sendTextGhost(text) {
   const cleanText = text
     .toUpperCase()
@@ -1219,6 +1231,39 @@ async function sendTextGhost(text) {
   const commands = [];
   let current = { ...ghostState };
 
+  // Helper para empujar comandos actualizando la posición simulada y detectando si cae en vocal
+  function addCommand(key) {
+    if (key === 'CursorUp') {
+      if (current.inSpecialRow) {
+        current.row = 3;
+        current.col = current.lastCol;
+        current.inSpecialRow = false;
+      } else {
+        current.row = Math.max(0, current.row - 1);
+      }
+    } else if (key === 'CursorDown') {
+      if (current.row === 3) {
+        current.row = 4;
+        current.lastCol = current.col;
+        current.col = 0;
+        current.inSpecialRow = true;
+      } else if (current.row < 3) {
+        current.row = current.row + 1;
+      }
+    } else if (key === 'CursorLeft') {
+      current.col = Math.max(0, current.col - 1);
+    } else if (key === 'CursorRight') {
+      if (current.inSpecialRow) {
+        current.col = Math.min(2, current.col + 1); // Fila especial sólo tiene 3 botones (0, 1, 2)
+      } else {
+        current.col = Math.min(7, current.col + 1);
+      }
+    }
+
+    const landedOnVowel = !current.inSpecialRow && isGhostVowel(current.row, current.col);
+    commands.push({ key, isVowelLand: landedOnVowel });
+  }
+
   for (let i = 0; i < cleanText.length; i++) {
     const char = cleanText[i];
     
@@ -1226,56 +1271,70 @@ async function sendTextGhost(text) {
       // Espacio (Fila especial 4, Columna 0)
       if (current.inSpecialRow) {
         if (current.col > 0) {
-          for (let c = 0; c < current.col; c++) {
-            commands.push('CursorLeft');
+          const backTo0 = current.col;
+          for (let c = 0; c < backTo0; c++) {
+            addCommand('CursorLeft');
           }
-          current.col = 0;
         }
       } else {
         const downTo3 = 3 - current.row;
         for (let r = 0; r < downTo3; r++) {
-          commands.push('CursorDown');
+          addCommand('CursorDown');
         }
-        commands.push('CursorDown'); // Entra a fila especial (Espacio)
-        current.lastCol = current.col;
-        current.row = 4;
-        current.col = 0;
-        current.inSpecialRow = true;
+        addCommand('CursorDown'); // Entra a fila especial (Espacio)
       }
-      commands.push('Confirm');
+      addCommand('Confirm');
     } else {
       const coords = YOUTUBE_KEYBOARD_MAP[char];
-      if (!coords) continue; // Saltar letras/caracteres no contemplados en la cuadrícula de YouTube
+      if (!coords) continue; // Saltar letras/caracteres no contemplados en la cuadrícula
       
       const [targetRow, targetCol] = coords;
       
       if (current.inSpecialRow) {
-        commands.push('CursorUp'); // Sube de la fila especial volviendo a la columna en que estaba en fila 3
-        current.row = 3;
-        current.col = current.lastCol;
-        current.inSpecialRow = false;
+        addCommand('CursorUp'); // Vuelve a fila 3 (columna lastCol)
       }
       
-      // Mover verticalmente
       const rowDiff = targetRow - current.row;
-      if (rowDiff > 0) {
-        for (let r = 0; r < rowDiff; r++) commands.push('CursorDown');
-      } else if (rowDiff < 0) {
-        for (let r = 0; r < Math.abs(rowDiff); r++) commands.push('CursorUp');
+      
+      // REGLA DE ORO: Si subimos y estamos sobre una vocal de filas 1, 2 o 3 (Columna 1 o U en 3,0),
+      // nos movemos primero a una columna segura (Col 2), subimos, y luego vamos a la col destino.
+      if (rowDiff < 0 && (current.col === 1 || (current.row === 3 && current.col === 0))) {
+        const colDiffToSafe = 2 - current.col;
+        if (colDiffToSafe > 0) {
+          for (let c = 0; c < colDiffToSafe; c++) addCommand('CursorRight');
+        } else if (colDiffToSafe < 0) {
+          for (let c = 0; c < Math.abs(colDiffToSafe); c++) addCommand('CursorLeft');
+        }
+        
+        // Mover verticalmente hacia arriba
+        for (let r = 0; r < Math.abs(rowDiff); r++) addCommand('CursorUp');
+        
+        // Mover horizontalmente desde columna 2 a la columna final
+        const colDiffToTarget = targetCol - current.col;
+        if (colDiffToTarget > 0) {
+          for (let c = 0; c < colDiffToTarget; c++) addCommand('CursorRight');
+        } else if (colDiffToTarget < 0) {
+          for (let c = 0; c < Math.abs(colDiffToTarget); c++) addCommand('CursorLeft');
+        }
+      } else {
+        // Navegación convencional
+        // 1. Mover verticalmente
+        if (rowDiff > 0) {
+          for (let r = 0; r < rowDiff; r++) addCommand('CursorDown');
+        } else if (rowDiff < 0) {
+          for (let r = 0; r < Math.abs(rowDiff); r++) addCommand('CursorUp');
+        }
+        
+        // 2. Mover horizontalmente
+        const colDiff = targetCol - current.col;
+        if (colDiff > 0) {
+          for (let c = 0; c < colDiff; c++) addCommand('CursorRight');
+        } else if (colDiff < 0) {
+          for (let c = 0; c < Math.abs(colDiff); c++) addCommand('CursorLeft');
+        }
       }
       
-      // Mover horizontalmente
-      const colDiff = targetCol - current.col;
-      if (colDiff > 0) {
-        for (let c = 0; c < colDiff; c++) commands.push('CursorRight');
-      } else if (colDiff < 0) {
-        for (let c = 0; c < Math.abs(colDiff); c++) commands.push('CursorLeft');
-      }
-      
-      commands.push('Confirm');
-      
-      current.row = targetRow;
-      current.col = targetCol;
+      addCommand('Confirm');
     }
   }
 
@@ -1288,22 +1347,22 @@ async function sendTextGhost(text) {
   showDebug(`Fantasma: Iniciando envío de ${cleanText}...`);
 
   for (let i = 0; i < commands.length; i++) {
-    const key = commands[i];
-    showDebug(`Fantasma: [${i+1}/${commands.length}] enviando ${key}`);
+    const cmd = commands[i];
+    showDebug(`Fantasma: [${i+1}/${commands.length}] enviando ${cmd.key}`);
     
     try {
       if (isLocalServer) {
         await hybridFetch('/api/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key }),
+          body: JSON.stringify({ key: cmd.key }),
           skipDebug: true
         });
       } else {
         await hybridFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key }),
+          body: JSON.stringify({ key: cmd.key }),
           skipDebug: true
         });
       }
@@ -1311,8 +1370,17 @@ async function sendTextGhost(text) {
       console.warn(`Error en envío de comando fantasma:`, e);
     }
     
-    // Retraso para que el procesador de la TV registre la navegación adecuadamente
-    const delay = key === 'Confirm' ? 550 : 320;
+    // Retraso base
+    let delay = 320;
+    if (cmd.key === 'Confirm') {
+      delay = 550; // Confirm (OK) necesita más tiempo en pantalla
+    }
+    
+    // Si caímos en una vocal, agregamos una espera extra de 250ms para esperar que aparezca y desaparezca el popup de acentos
+    if (cmd.isVowelLand) {
+      delay += 250;
+    }
+    
     await new Promise(resolve => setTimeout(resolve, delay));
   }
 
