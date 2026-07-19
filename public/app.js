@@ -743,6 +743,8 @@ async function setAmbilightColor(r, g, b) {
 
 // --- Lógica de la Guía de Canales (EPG) ---
 function initGuideListeners() {
+  if (!btnShowGuide) return;
+  
   btnShowGuide.addEventListener('click', async () => {
     triggerHaptic();
     
