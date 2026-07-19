@@ -71,14 +71,26 @@ function checkIsLocalServer() {
   return window.location.port === '3000' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
+// Mostrar mensajes en la consola debug de la interfaz
+function showDebug(msg) {
+  const el = document.getElementById('debug-log');
+  if (el) {
+    el.textContent = `Consola: ${msg}`;
+    console.log(`[Remote Debug] ${msg}`);
+  }
+}
+
 // Wrapper de fetch compatible con Capacitor (evita CORS y bloqueos de red en el móvil)
 async function hybridFetch(url, options = {}) {
   const isCapacitor = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
-  
+  const method = options.method || 'GET';
+  const cleanUrl = url.replace(/https?:\/\/.*?\//, '/'); // Simplificar URL para el log
+
+  showDebug(`Enviando ${method} a ${cleanUrl}`);
+
   if (isCapacitor) {
     try {
       const capHttp = window.Capacitor.Plugins.CapacitorHttp;
-      const method = options.method || 'GET';
       const headers = options.headers || {};
       
       let data = undefined;
@@ -100,6 +112,7 @@ async function hybridFetch(url, options = {}) {
       };
       
       const response = await capHttp.request(nativeOptions);
+      showDebug(`Respuesta: ${response.status} de ${method} ${cleanUrl}`);
       
       return {
         status: response.status,
@@ -111,13 +124,22 @@ async function hybridFetch(url, options = {}) {
         }
       };
     } catch(err) {
+      showDebug(`Error NAT: ${err.message || err} en ${cleanUrl}`);
       console.error('Error en CapacitorHttp nativo:', err);
       throw err;
     }
   } else {
-    return await fetch(url, options);
+    try {
+      const res = await fetch(url, options);
+      showDebug(`Respuesta: ${res.status} de ${method} ${cleanUrl}`);
+      return res;
+    } catch(err) {
+      showDebug(`Error WEB: ${err.message || err} en ${cleanUrl}`);
+      throw err;
+    }
   }
 }
+
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
