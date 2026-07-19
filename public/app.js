@@ -745,6 +745,10 @@ async function setAmbilightColor(r, g, b) {
 function initGuideListeners() {
   btnShowGuide.addEventListener('click', async () => {
     triggerHaptic();
+    
+    const confirmGuide = confirm("Advertencia: En algunos modelos de TV Philips (como Saphi OS), cargar la lista de canales satura el procesador de la TV y congela su control por red. ¿Deseas abrir la guía?");
+    if (!confirmGuide) return;
+
     guideDrawer.classList.remove('hidden');
     await openChannelsGuide();
   });
