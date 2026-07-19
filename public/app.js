@@ -432,27 +432,32 @@ function initSettingsListeners() {
           for (let j = 0; j < maxParallel && (i + j) <= 254; j++) {
             const targetIp = `${subnet}.${i+j}`;
             promises.push((async () => {
-              for (const port of [1925, 1926]) {
-                const protocol = port === 1926 ? 'https' : 'http';
-                for (const ver of [6, 1]) {
-                  try {
-                    const url = `${protocol}://${targetIp}:${port}/${ver}/system`;
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 800);
-                    const res = await hybridFetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (res.status === 200 || res.status === 401) {
-                      let name = `Philips TV (${targetIp})`;
-                      try {
-                        const info = await res.json();
-                        name = info.name || name;
-                      } catch(e) {}
-                      return { ip: targetIp, port, apiVersion: ver, name };
-                    }
-                  } catch(e) {}
-                }
-              }
-              return null;
+              const checkEndpoints = [
+                { url: `http://${targetIp}:1925/6/system`, port: 1925, ver: 6 },
+                { url: `http://${targetIp}:1925/1/system`, port: 1925, ver: 1 },
+                { url: `https://${targetIp}:1926/6/system`, port: 1926, ver: 6 }
+              ];
+              
+              const checkPromises = checkEndpoints.map(endpoint => (async () => {
+                try {
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 850);
+                  const res = await hybridFetch(endpoint.url, { signal: controller.signal });
+                  clearTimeout(timeoutId);
+                  if (res.status === 200 || res.status === 401) {
+                    let name = `Philips TV (${targetIp})`;
+                    try {
+                      const info = await res.json();
+                      name = info.name || name;
+                    } catch(e) {}
+                    return { ip: targetIp, port: endpoint.port, apiVersion: endpoint.ver, name };
+                  }
+                } catch(e) {}
+                return null;
+              })());
+              
+              const results = await Promise.all(checkPromises);
+              return results.find(r => r !== null) || null;
             })());
           }
           const results = await Promise.all(promises);
