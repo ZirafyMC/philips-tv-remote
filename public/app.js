@@ -89,8 +89,11 @@ async function hybridFetch(url, options = {}) {
   const method = options.method || 'GET';
   const cleanUrl = url.replace(/https?:\/\/.*?\//, '/'); // Simplificar URL para el log
   const timeout = options.timeout || 4500; // Por defecto 4.5 segundos para dar suficiente margen de red
+  const skipDebug = options.skipDebug || false;
 
-  showDebug(`Enviando ${method} a ${cleanUrl}`);
+  if (!skipDebug) {
+    showDebug(`Enviando ${method} a ${cleanUrl}`);
+  }
 
   if (isCapacitor) {
     try {
@@ -116,7 +119,9 @@ async function hybridFetch(url, options = {}) {
       };
       
       const response = await capHttp.request(nativeOptions);
-      showDebug(`Respuesta: ${response.status} de ${method} ${cleanUrl}`);
+      if (!skipDebug) {
+        showDebug(`Respuesta: ${response.status} de ${method} ${cleanUrl}`);
+      }
       
       return {
         status: response.status,
@@ -128,18 +133,23 @@ async function hybridFetch(url, options = {}) {
         }
       };
     } catch(err) {
-      showDebug(`Error NAT: ${err.message || err} en ${cleanUrl}`);
+      if (!skipDebug) {
+        showDebug(`Error NAT: ${err.message || err} en ${cleanUrl}`);
+      }
       console.error('Error en CapacitorHttp nativo:', err);
       throw err;
     }
   } else {
     try {
       const res = await fetch(url, options);
-      showDebug(`Respuesta: ${res.status} de ${method} ${cleanUrl}`);
+      if (!skipDebug) {
+        showDebug(`Respuesta: ${res.status} de ${method} ${cleanUrl}`);
+      }
       return res;
-
     } catch(err) {
-      showDebug(`Error WEB: ${err.message || err} en ${cleanUrl}`);
+      if (!skipDebug) {
+        showDebug(`Error WEB: ${err.message || err} en ${cleanUrl}`);
+      }
       throw err;
     }
   }
@@ -466,13 +476,14 @@ function initSettingsListeners() {
               
               const checkPromises = checkEndpoints.map(endpoint => (async () => {
                 try {
-                  const res = await hybridFetch(endpoint.url, { timeout: 800 });
+                  const res = await hybridFetch(endpoint.url, { timeout: 1800, skipDebug: true });
                   if (res.status === 200 || res.status === 401) {
                     let name = `Philips TV (${targetIp})`;
                     try {
                       const info = await res.json();
                       name = info.name || name;
                     } catch(e) {}
+                    showDebug(`¡TV Encontrada en ${targetIp}!`);
                     return { ip: targetIp, port: endpoint.port, apiVersion: endpoint.ver, name };
                   }
                 } catch(e) {}
