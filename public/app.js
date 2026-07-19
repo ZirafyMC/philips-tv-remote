@@ -800,37 +800,96 @@ async function openChannelsGuide() {
       const port = appState.port;
       const protocol = port === 1926 ? 'https' : 'http';
       
-      const endpoints = [
-        `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/all/channels`,
-        `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/all`,
-        `${protocol}://${ip}:${port}/1/channels`
-      ];
-      
       let fetched = false;
       let lastErr = null;
+      let channelsList = [];
 
-      for (const url of endpoints) {
+      // Intentar descubrir listas de canales
+      try {
+        const listUrl = `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists`;
+        const listRes = await hybridFetch(listUrl, { timeout: 4500 });
+        if (listRes.status === 200) {
+          const listData = await listRes.json();
+          let lists = [];
+          if (Array.isArray(listData)) {
+            lists = listData;
+          } else if (listData.channelLists && Array.isArray(listData.channelLists)) {
+            lists = listData.channelLists;
+          } else if (listData.ChannelList && Array.isArray(listData.ChannelList)) {
+            lists = listData.ChannelList;
+          }
+          
+          const listIds = lists.map(l => l.id).filter(id => id);
+          for (const listId of listIds) {
+            const endpoints = [
+              `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/${listId}/channels`,
+              `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/${listId}`
+            ];
+            for (const url of endpoints) {
+              try {
+                const res = await hybridFetch(url, { timeout: 4500 });
+                if (res.status === 200) {
+                  const data = await res.json();
+                  const rawList = data.channel || data;
+                  if (Array.isArray(rawList) && rawList.length > 0) {
+                    channelsList = rawList;
+                    fetched = true;
+                    break;
+                  }
+                }
+              } catch(e) {
+                lastErr = e;
+              }
+            }
+            if (fetched) break;
+          }
+        }
+      } catch(e) {
+        lastErr = e;
+      }
+
+      // Fallbacks estáticos si no pudimos descubrir dinámicamente
+      if (!fetched) {
+        const staticListIds = ['allter', 'allsat', 'allcab', 'all'];
+        for (const listId of staticListIds) {
+          const endpoints = [
+            `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/${listId}/channels`,
+            `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/${listId}`
+          ];
+          for (const url of endpoints) {
+            try {
+              const res = await hybridFetch(url, { timeout: 4500 });
+              if (res.status === 200) {
+                const data = await res.json();
+                const rawList = data.channel || data;
+                if (Array.isArray(rawList) && rawList.length > 0) {
+                  channelsList = rawList;
+                  fetched = true;
+                  break;
+                }
+              }
+            } catch(e) {
+              lastErr = e;
+            }
+          }
+          if (fetched) break;
+        }
+      }
+
+      // Último recurso: endpoint legacy de v1
+      if (!fetched) {
         try {
+          const url = `${protocol}://${ip}:${port}/1/channels`;
           const res = await hybridFetch(url, { timeout: 4500 });
           if (res.status === 200) {
-            const rawData = await res.json();
-            let channelList = [];
-            if (rawData.channel && Array.isArray(rawData.channel)) {
-              channelList = rawData.channel;
-            } else if (Array.isArray(rawData)) {
-              channelList = rawData;
+            const data = await res.json();
+            const rawList = data.channel || data;
+            if (Array.isArray(rawList) && rawList.length > 0) {
+              channelsList = rawList;
+              fetched = true;
             }
-            
-            cachedChannels = channelList.map(ch => ({
-              ccid: ch.ccid || '',
-              name: ch.name || '',
-              preset: ch.preset !== undefined ? String(ch.preset) : ''
-            }));
-            fetched = true;
-            break;
           }
-        } catch (e) {
-          console.warn(`Error al obtener canales en ${url}:`, e);
+        } catch(e) {
           lastErr = e;
         }
       }
@@ -838,6 +897,12 @@ async function openChannelsGuide() {
       if (!fetched) {
         throw new Error(lastErr ? lastErr.message : "No se pudo obtener la lista de canales de la TV");
       }
+
+      cachedChannels = channelsList.map(ch => ({
+        ccid: ch.ccid || '',
+        name: ch.name || '',
+        preset: ch.preset !== undefined ? String(ch.preset) : ''
+      }));
     }
 
     renderChannelsGuide();
