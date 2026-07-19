@@ -435,20 +435,22 @@ function initSettingsListeners() {
 
     // Escaneo en modo APK / Client-side
     try {
-      let subnets = ['192.168.0', '192.168.1', '192.168.8'];
+      let subnets = [];
       const tvIp = inputIp.value.trim() || localStorage.getItem('tv_ip');
       if (tvIp) {
         const parts = tvIp.split('.');
         if (parts.length === 4) {
-          const currentSubnet = parts.slice(0, 3).join('.');
-          if (!subnets.includes(currentSubnet)) {
-            subnets.unshift(currentSubnet);
-          }
+          subnets = [parts.slice(0, 3).join('.')];
         }
+      }
+      
+      // Fallback a subredes comunes solo si no hay ninguna IP configurada/guardada
+      if (subnets.length === 0) {
+        subnets = ['192.168.0', '192.168.1'];
       }
 
       const foundTvs = [];
-      const maxParallel = 12;
+      const maxParallel = 30; // Mayor número de peticiones en paralelo para escaneo rápido
 
       for (const subnet of subnets) {
         for (let i = 1; i <= 254; i += maxParallel) {
@@ -464,7 +466,7 @@ function initSettingsListeners() {
               
               const checkPromises = checkEndpoints.map(endpoint => (async () => {
                 try {
-                  const res = await hybridFetch(endpoint.url, { timeout: 950 });
+                  const res = await hybridFetch(endpoint.url, { timeout: 800 });
                   if (res.status === 200 || res.status === 401) {
                     let name = `Philips TV (${targetIp})`;
                     try {
