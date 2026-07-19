@@ -68,6 +68,9 @@ let cachedChannels = [];
 
 // Detectar si la app corre servida desde el backend de la PC o de forma local/APK
 function checkIsLocalServer() {
+  if (window.Capacitor) {
+    return false;
+  }
   return window.location.port === '3000' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
