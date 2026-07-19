@@ -1215,7 +1215,8 @@ const GHOST_VOWELS = [
   [0, 4], // E
   [1, 1], // I
   [2, 1], // O
-  [3, 0]  // U
+  [3, 0], // U
+  [1, 6]  // N (Muestra popup de Ñ)
 ];
 
 function isGhostVowel(row, col) {
@@ -1296,10 +1297,15 @@ async function sendTextGhost(text) {
       
       const rowDiff = targetRow - current.row;
       
-      // REGLA DE ORO: Si subimos y estamos sobre una vocal de filas 1, 2 o 3 (Columna 1 o U en 3,0),
-      // nos movemos primero a una columna segura (Col 2), subimos, y luego vamos a la col destino.
-      if (rowDiff < 0 && (current.col === 1 || (current.row === 3 && current.col === 0))) {
-        const colDiffToSafe = 2 - current.col;
+      // REGLA DE ORO: Si subimos y estamos sobre una vocal o letra inestable (Columna 1, U en 3,0, o N en 1,6),
+      // nos movemos primero a una columna segura (Col 2 o Col 5 para N), subimos, y luego vamos a la col destino.
+      const isUnsafeVowelCol = current.col === 1;
+      const isUnsafeU = current.row === 3 && current.col === 0;
+      const isUnsafeN = current.row === 1 && current.col === 6;
+      
+      if (rowDiff < 0 && (isUnsafeVowelCol || isUnsafeU || isUnsafeN)) {
+        const safeCol = isUnsafeN ? 5 : 2;
+        const colDiffToSafe = safeCol - current.col;
         if (colDiffToSafe > 0) {
           for (let c = 0; c < colDiffToSafe; c++) addCommand('CursorRight');
         } else if (colDiffToSafe < 0) {
@@ -1309,7 +1315,7 @@ async function sendTextGhost(text) {
         // Mover verticalmente hacia arriba
         for (let r = 0; r < Math.abs(rowDiff); r++) addCommand('CursorUp');
         
-        // Mover horizontalmente desde columna 2 a la columna final
+        // Mover horizontalmente desde columna segura a la columna final
         const colDiffToTarget = targetCol - current.col;
         if (colDiffToTarget > 0) {
           for (let c = 0; c < colDiffToTarget; c++) addCommand('CursorRight');
