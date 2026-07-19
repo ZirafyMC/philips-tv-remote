@@ -85,6 +85,7 @@ async function hybridFetch(url, options = {}) {
   const isCapacitor = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
   const method = options.method || 'GET';
   const cleanUrl = url.replace(/https?:\/\/.*?\//, '/'); // Simplificar URL para el log
+  const timeout = options.timeout || 4500; // Por defecto 4.5 segundos para dar suficiente margen de red
 
   showDebug(`Enviando ${method} a ${cleanUrl}`);
 
@@ -107,8 +108,8 @@ async function hybridFetch(url, options = {}) {
         method,
         headers,
         data,
-        connectTimeout: options.signal ? 900 : 3500,
-        readTimeout: 3500
+        connectTimeout: timeout,
+        readTimeout: timeout
       };
       
       const response = await capHttp.request(nativeOptions);
@@ -133,6 +134,7 @@ async function hybridFetch(url, options = {}) {
       const res = await fetch(url, options);
       showDebug(`Respuesta: ${res.status} de ${method} ${cleanUrl}`);
       return res;
+
     } catch(err) {
       showDebug(`Error WEB: ${err.message || err} en ${cleanUrl}`);
       throw err;
@@ -270,10 +272,7 @@ async function fetchCurrentChannel() {
   
   for (const url of endpoints) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1800);
-      const res = await hybridFetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
+      const res = await hybridFetch(url, { timeout: 2500 });
       
       if (res.status === 200) {
         const rawData = await res.json();
@@ -462,10 +461,7 @@ function initSettingsListeners() {
               
               const checkPromises = checkEndpoints.map(endpoint => (async () => {
                 try {
-                  const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 850);
-                  const res = await hybridFetch(endpoint.url, { signal: controller.signal });
-                  clearTimeout(timeoutId);
+                  const res = await hybridFetch(endpoint.url, { timeout: 950 });
                   if (res.status === 200 || res.status === 401) {
                     let name = `Philips TV (${targetIp})`;
                     try {
@@ -573,10 +569,7 @@ async function connectToTv(ip, port, apiVersion) {
     const protocol = port === 1926 ? 'https' : 'http';
     const url = `${protocol}://${ip}:${port}/${apiVersion}/system`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-    const res = await hybridFetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await hybridFetch(url, { timeout: 4500 });
     
     if (res.status === 200 || res.status === 401) {
       let name = "Smart TV";
@@ -815,10 +808,7 @@ async function openChannelsGuide() {
 
       for (const url of endpoints) {
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-          const res = await hybridFetch(url, { signal: controller.signal });
-          clearTimeout(timeoutId);
+          const res = await hybridFetch(url, { timeout: 4500 });
           if (res.status === 200) {
             const rawData = await res.json();
             let channelList = [];
