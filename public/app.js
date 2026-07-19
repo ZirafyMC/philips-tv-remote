@@ -71,6 +71,54 @@ function checkIsLocalServer() {
   return window.location.port === '3000' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 }
 
+// Wrapper de fetch compatible con Capacitor (evita CORS y bloqueos de red en el móvil)
+async function hybridFetch(url, options = {}) {
+  const isCapacitor = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
+  
+  if (isCapacitor) {
+    try {
+      const capHttp = window.Capacitor.Plugins.CapacitorHttp;
+      const method = options.method || 'GET';
+      const headers = options.headers || {};
+      
+      let data = undefined;
+      if (options.body) {
+        if (typeof options.body === 'string') {
+          data = JSON.parse(options.body);
+        } else {
+          data = options.body;
+        }
+      }
+      
+      const nativeOptions = {
+        url: url.startsWith('/') ? `${window.location.origin}${url}` : url,
+        method,
+        headers,
+        data,
+        connectTimeout: options.signal ? 900 : 3500,
+        readTimeout: 3500
+      };
+      
+      const response = await capHttp.request(nativeOptions);
+      
+      return {
+        status: response.status,
+        ok: response.status >= 200 && response.status < 300,
+        json: async () => response.data,
+        text: async () => typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
+        headers: {
+          get: (name) => response.headers[name] || response.headers[name.toLowerCase()] || null
+        }
+      };
+    } catch(err) {
+      console.error('Error en CapacitorHttp nativo:', err);
+      throw err;
+    }
+  } else {
+    return await fetch(url, options);
+  }
+}
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
@@ -120,7 +168,7 @@ async function checkStatus() {
   
   if (isLocalServer) {
     try {
-      const res = await fetch('/api/status');
+      const res = await hybridFetch('/api/status');
       const status = await res.json();
       appState = status;
       if (status.configured) {
@@ -174,7 +222,7 @@ async function fetchCurrentChannel() {
 
   if (isLocalServer) {
     try {
-      const res = await fetch('/api/channels/current');
+      const res = await hybridFetch('/api/channels/current');
       if (res.status === 200) {
         const rawData = await res.json();
         if (rawData.channel) {
@@ -192,16 +240,17 @@ async function fetchCurrentChannel() {
   const apiVersion = appState.apiVersion;
   const ip = appState.ip;
   const port = appState.port;
+  const protocol = port === 1926 ? 'https' : 'http';
   const endpoints = [
-    `http://${ip}:${port}/${apiVersion}/activities/tv`,
-    `http://${ip}:${port}/${apiVersion}/channels/current`
+    `${protocol}://${ip}:${port}/${apiVersion}/activities/tv`,
+    `${protocol}://${ip}:${port}/${apiVersion}/channels/current`
   ];
   
   for (const url of endpoints) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1800);
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await hybridFetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
       
       if (res.status === 200) {
@@ -275,7 +324,7 @@ function initRemoteButtons() {
 
       if (isLocalServer) {
         try {
-          await fetch('/api/command', {
+          await hybridFetch('/api/command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key })
@@ -286,8 +335,9 @@ function initRemoteButtons() {
       } else {
         // Llamada directa
         try {
-          const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
-          await fetch(url, {
+          const protocol = appState.port === 1926 ? 'https' : 'http';
+          const url = `${protocol}://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+          await hybridFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key })
@@ -340,7 +390,7 @@ function initSettingsListeners() {
 
     if (isLocalServer) {
       try {
-        const res = await fetch('/api/scan');
+        const res = await hybridFetch('/api/scan');
         const data = await res.json();
         
         scanLoading.classList.add('hidden');
@@ -374,7 +424,7 @@ function initSettingsListeners() {
       }
 
       const foundTvs = [];
-      const maxParallel = 15;
+      const maxParallel = 12;
 
       for (const subnet of subnets) {
         for (let i = 1; i <= 254; i += maxParallel) {
@@ -388,8 +438,8 @@ function initSettingsListeners() {
                   try {
                     const url = `${protocol}://${targetIp}:${port}/${ver}/system`;
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 650);
-                    const res = await fetch(url, { signal: controller.signal });
+                    const timeoutId = setTimeout(() => controller.abort(), 800);
+                    const res = await hybridFetch(url, { signal: controller.signal });
                     clearTimeout(timeoutId);
                     if (res.status === 200 || res.status === 401) {
                       let name = `Philips TV (${targetIp})`;
@@ -472,7 +522,7 @@ async function connectToTv(ip, port, apiVersion) {
 
   if (isLocalServer) {
     try {
-      const res = await fetch('/api/connect', {
+      const res = await hybridFetch('/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip, port, apiVersion })
@@ -498,7 +548,7 @@ async function connectToTv(ip, port, apiVersion) {
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await hybridFetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
     
     if (res.status === 200 || res.status === 401) {
@@ -588,7 +638,7 @@ async function setAmbilightMode(modePayload) {
 
   if (isLocalServer) {
     try {
-      const res = await fetch('/api/ambilight/mode', {
+      const res = await hybridFetch('/api/ambilight/mode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(modePayload)
@@ -600,8 +650,9 @@ async function setAmbilightMode(modePayload) {
   } else {
     // Direct call
     try {
-      const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/mode`;
-      const res = await fetch(url, {
+      const protocol = appState.port === 1926 ? 'https' : 'http';
+      const url = `${protocol}://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/mode`;
+      const res = await hybridFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(modePayload)
@@ -620,7 +671,7 @@ async function setAmbilightColor(r, g, b) {
 
   if (isLocalServer) {
     try {
-      const res = await fetch('/api/ambilight/color', {
+      const res = await hybridFetch('/api/ambilight/color', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ r, g, b })
@@ -632,7 +683,8 @@ async function setAmbilightColor(r, g, b) {
   } else {
     // Direct call
     try {
-      const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/cached`;
+      const protocol = appState.port === 1926 ? 'https' : 'http';
+      const url = `${protocol}://${appState.ip}:${appState.port}/${appState.apiVersion}/ambilight/cached`;
       const payload = {
         layer1: {
           left: { '0': { r, g, b } },
@@ -641,7 +693,7 @@ async function setAmbilightColor(r, g, b) {
           bottom: { '0': { r, g, b } }
         }
       };
-      const res = await fetch(url, {
+      const res = await hybridFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -701,7 +753,7 @@ async function openChannelsGuide() {
 
       if (isLocalServer) {
         try {
-          const res = await fetch('/api/channels');
+          const res = await hybridFetch('/api/channels');
           if (res.status === 200) {
             const data = await res.json();
             if (data.channels && data.channels.length > 0) {
@@ -723,11 +775,12 @@ async function openChannelsGuide() {
       const apiVersion = appState.apiVersion;
       const ip = appState.ip;
       const port = appState.port;
+      const protocol = port === 1926 ? 'https' : 'http';
       
       const endpoints = [
-        `http://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/all/channels`,
-        `http://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/all`,
-        `http://${ip}:${port}/1/channels`
+        `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/all/channels`,
+        `${protocol}://${ip}:${port}/${apiVersion}/channeldb/tv/channelLists/all`,
+        `${protocol}://${ip}:${port}/1/channels`
       ];
       
       let fetched = false;
@@ -737,7 +790,7 @@ async function openChannelsGuide() {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 3000);
-          const res = await fetch(url, { signal: controller.signal });
+          const res = await hybridFetch(url, { signal: controller.signal });
           clearTimeout(timeoutId);
           if (res.status === 200) {
             const rawData = await res.json();
@@ -817,7 +870,7 @@ function renderChannelsGuide() {
 
       if (isLocalServer) {
         try {
-          const res = await fetch('/api/channels/select', {
+          const res = await hybridFetch('/api/channels/select', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -842,11 +895,12 @@ function renderChannelsGuide() {
         const apiVersion = appState.apiVersion;
         const ip = appState.ip;
         const port = appState.port;
+        const protocol = port === 1926 ? 'https' : 'http';
         let success = false;
 
         if (apiVersion === 6) {
           try {
-            const url = `http://${ip}:${port}/6/activities/tv`;
+            const url = `${protocol}://${ip}:${port}/6/activities/tv`;
             const payload = {
               channel: {
                 ccid: parseInt(ch.ccid) || ch.ccid,
@@ -855,7 +909,7 @@ function renderChannelsGuide() {
               },
               channelList: { id: 'all' }
             };
-            const res = await fetch(url, {
+            const res = await hybridFetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
@@ -869,11 +923,11 @@ function renderChannelsGuide() {
         }
 
         if (!success) {
-          const url = `http://${ip}:${port}/1/channels/current`;
+          const url = `${protocol}://${ip}:${port}/1/channels/current`;
           const payload = {
             channel: { ccid: parseInt(ch.ccid) || ch.ccid }
           };
-          const res = await fetch(url, {
+          const res = await hybridFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -947,14 +1001,15 @@ function initKeyboardInputListeners() {
       const isLocalServer = checkIsLocalServer();
       const key = 'Back';
       if (isLocalServer) {
-        await fetch('/api/command', {
+        await hybridFetch('/api/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key })
         });
       } else {
-        const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
-        await fetch(url, {
+        const protocol = appState.port === 1926 ? 'https' : 'http';
+        const url = `${protocol}://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+        await hybridFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key })
@@ -987,14 +1042,15 @@ async function sendTextToTv(text) {
     try {
       const isLocalServer = checkIsLocalServer();
       if (isLocalServer) {
-        await fetch('/api/command', {
+        await hybridFetch('/api/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key })
         });
       } else {
-        const url = `http://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
-        await fetch(url, {
+        const protocol = appState.port === 1926 ? 'https' : 'http';
+        const url = `${protocol}://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+        await hybridFetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key })

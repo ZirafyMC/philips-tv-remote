@@ -278,20 +278,46 @@ function checkPort(ip, port, timeout = 600) {
   });
 }
 
-// Detectar IP local y subnet base
-function getLocalSubnet() {
+// Detectar IPs locales y subredes base
+function getLocalSubnets() {
+  const subnets = new Set(['192.168.0', '192.168.1']);
   const interfaces = os.networkInterfaces();
   for (const name in interfaces) {
     for (const net of interfaces[name]) {
       if (net.family === 'IPv4' && !net.internal) {
         const parts = net.address.split('.');
-        if (parts[0] === '192' || parts[0] === '10' || parts[0] === '172') {
-          return parts.slice(0, 3).join('.');
+        if (parts.length === 4) {
+          const subnet = parts.slice(0, 3).join('.');
+          if (subnet !== '127.0.0' && !subnet.startsWith('172.17') && !subnet.startsWith('172.18')) {
+            subnets.add(subnet);
+          }
         }
       }
     }
   }
-  return '192.168.1';
+  return Array.from(subnets);
+}
+
+// Escanear una subred específica con límite de peticiones paralelas
+async function scanSubnet(subnet, limit = 45) {
+  const hosts = [];
+  const ips = [];
+  for (let i = 1; i <= 254; i++) {
+    ips.push(`${subnet}.${i}`);
+  }
+  
+  for (let i = 0; i < ips.length; i += limit) {
+    const batch = ips.slice(i, i + limit);
+    const promises = batch.map(ip => {
+      return Promise.all([
+        checkPort(ip, 1925).then(open => open ? { ip, port: 1925 } : null),
+        checkPort(ip, 1926).then(open => open ? { ip, port: 1926 } : null)
+      ]).then(results => results.filter(r => r !== null));
+    });
+    const batchResults = await Promise.all(promises);
+    hosts.push(...batchResults.flat());
+  }
+  return hosts;
 }
 
 // Enpoints de la API del Backend
@@ -313,22 +339,14 @@ app.get('/api/status', (req, res) => {
 // 2. Escaneo de red local
 app.get('/api/scan', async (req, res) => {
   try {
-    const subnet = getLocalSubnet();
-    console.log(`Iniciando escaneo de red en subred: ${subnet}.X`);
+    const subnets = getLocalSubnets();
+    console.log(`Iniciando escaneo de red en subredes:`, subnets);
     
-    const scanPromises = [];
-    for (let i = 1; i <= 254; i++) {
-      const ip = `${subnet}.${i}`;
-      scanPromises.push(
-        Promise.all([
-          checkPort(ip, 1925).then(open => open ? { ip, port: 1925 } : null),
-          checkPort(ip, 1926).then(open => open ? { ip, port: 1926 } : null)
-        ]).then(results => results.filter(r => r !== null))
-      );
+    const activeHosts = [];
+    for (const subnet of subnets) {
+      const found = await scanSubnet(subnet, 45);
+      activeHosts.push(...found);
     }
-
-    const scanResults = await Promise.all(scanPromises);
-    const activeHosts = scanResults.flat();
     
     const tvs = [];
     for (const host of activeHosts) {
