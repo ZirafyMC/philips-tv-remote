@@ -1067,21 +1067,62 @@ function renderChannelsGuide() {
 }
 
 // --- Lógica del teclado de texto para la TV ---
+
+// Mapa de coordenadas para el teclado en cuadrícula de YouTube
+const YOUTUBE_KEYBOARD_MAP = {
+  'A': [0, 0], 'B': [0, 1], 'C': [0, 2], 'D': [0, 3], 'E': [0, 4], 'F': [0, 5], 'G': [0, 6],
+  'H': [1, 0], 'I': [1, 1], 'J': [1, 2], 'K': [1, 3], 'L': [1, 4], 'M': [1, 5], 'N': [1, 6],
+  'Ñ': [2, 0], 'O': [2, 1], 'P': [2, 2], 'Q': [2, 3], 'R': [2, 4], 'S': [2, 5], 'T': [2, 6],
+  'U': [3, 0], 'V': [3, 1], 'W': [3, 2], 'X': [3, 3], 'Y': [3, 4], 'Z': [3, 5]
+};
+
+// Estado de la posición virtual del cursor en la TV
+let ghostState = { row: 0, col: 0, inSpecialRow: false, lastCol: 0 };
+
 function initKeyboardInputListeners() {
   if (!btnKeyboardSend || !tvKeyboardInput || !btnKeyboardClear) return;
   
+  const chkGhostMode = document.getElementById('chk-ghost-mode');
+  const btnCalibrateGhost = document.getElementById('btn-calibrate-ghost');
+
+  if (chkGhostMode && btnCalibrateGhost) {
+    chkGhostMode.addEventListener('change', () => {
+      if (chkGhostMode.checked) {
+        btnCalibrateGhost.style.display = 'inline-block';
+        showDebug("Modo Fantasma activado. Calibra el cursor en la 'A' en YouTube.");
+      } else {
+        btnCalibrateGhost.style.display = 'none';
+      }
+    });
+
+    btnCalibrateGhost.addEventListener('click', () => {
+      triggerHaptic();
+      ghostState = { row: 0, col: 0, inSpecialRow: false, lastCol: 0 };
+      alert("Calibración completada. Asegúrate de que el cursor amarillo en la pantalla de la TV esté exactamente sobre la letra 'A' en el buscador de YouTube.");
+      showDebug("Cursor fantasma calibrado en 'A' (0,0)");
+    });
+  }
+
   btnKeyboardSend.addEventListener('click', async () => {
     triggerHaptic();
     const text = tvKeyboardInput.value.trim();
     if (!text) return;
     
     btnKeyboardSend.disabled = true;
+    tvKeyboardInput.disabled = true;
     btnKeyboardSend.textContent = "Enviando...";
+
+    const useGhost = chkGhostMode && chkGhostMode.checked;
     
-    await sendTextToTv(text);
+    if (useGhost) {
+      await sendTextGhost(text);
+    } else {
+      await sendTextToTv(text);
+    }
     
     tvKeyboardInput.value = '';
     btnKeyboardSend.disabled = false;
+    tvKeyboardInput.disabled = false;
     btnKeyboardSend.textContent = "Enviar";
   });
   
@@ -1125,7 +1166,7 @@ function initKeyboardInputListeners() {
   });
 }
 
-// Enviar texto letra a letra a la TV con delay
+// Enviar texto letra a letra a la TV con delay (Para menús nativos del sistema)
 async function sendTextToTv(text) {
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -1164,7 +1205,117 @@ async function sendTextToTv(text) {
       console.warn('Fallo al enviar carácter a la TV:', err);
     }
     
-    // Retraso de 150ms entre caracteres para dar tiempo a la TV a procesarlos sin perder letras
     await new Promise(resolve => setTimeout(resolve, 150));
   }
+}
+
+// Teclado Fantasma (Navegación automática simulada para YouTube)
+async function sendTextGhost(text) {
+  const cleanText = text
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, ""); // Quitar acentos y caracteres especiales
+
+  const commands = [];
+  let current = { ...ghostState };
+
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    
+    if (char === ' ') {
+      // Espacio (Fila especial 4, Columna 0)
+      if (current.inSpecialRow) {
+        if (current.col > 0) {
+          for (let c = 0; c < current.col; c++) {
+            commands.push('CursorLeft');
+          }
+          current.col = 0;
+        }
+      } else {
+        const downTo3 = 3 - current.row;
+        for (let r = 0; r < downTo3; r++) {
+          commands.push('CursorDown');
+        }
+        commands.push('CursorDown'); // Entra a fila especial (Espacio)
+        current.lastCol = current.col;
+        current.row = 4;
+        current.col = 0;
+        current.inSpecialRow = true;
+      }
+      commands.push('Confirm');
+    } else {
+      const coords = YOUTUBE_KEYBOARD_MAP[char];
+      if (!coords) continue; // Saltar letras/caracteres no contemplados en la cuadrícula de YouTube
+      
+      const [targetRow, targetCol] = coords;
+      
+      if (current.inSpecialRow) {
+        commands.push('CursorUp'); // Sube de la fila especial volviendo a la columna en que estaba en fila 3
+        current.row = 3;
+        current.col = current.lastCol;
+        current.inSpecialRow = false;
+      }
+      
+      // Mover verticalmente
+      const rowDiff = targetRow - current.row;
+      if (rowDiff > 0) {
+        for (let r = 0; r < rowDiff; r++) commands.push('CursorDown');
+      } else if (rowDiff < 0) {
+        for (let r = 0; r < Math.abs(rowDiff); r++) commands.push('CursorUp');
+      }
+      
+      // Mover horizontalmente
+      const colDiff = targetCol - current.col;
+      if (colDiff > 0) {
+        for (let c = 0; c < colDiff; c++) commands.push('CursorRight');
+      } else if (colDiff < 0) {
+        for (let c = 0; c < Math.abs(colDiff); c++) commands.push('CursorLeft');
+      }
+      
+      commands.push('Confirm');
+      
+      current.row = targetRow;
+      current.col = targetCol;
+    }
+  }
+
+  if (commands.length === 0) return;
+
+  const isLocalServer = checkIsLocalServer();
+  const protocol = appState.port === 1926 ? 'https' : 'http';
+  const url = `${protocol}://${appState.ip}:${appState.port}/${appState.apiVersion}/input/key`;
+
+  showDebug(`Fantasma: Iniciando envío de ${cleanText}...`);
+
+  for (let i = 0; i < commands.length; i++) {
+    const key = commands[i];
+    showDebug(`Fantasma: [${i+1}/${commands.length}] enviando ${key}`);
+    
+    try {
+      if (isLocalServer) {
+        await hybridFetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key }),
+          skipDebug: true
+        });
+      } else {
+        await hybridFetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key }),
+          skipDebug: true
+        });
+      }
+    } catch (e) {
+      console.warn(`Error en envío de comando fantasma:`, e);
+    }
+    
+    // Retraso para que el procesador de la TV registre la navegación adecuadamente
+    const delay = key === 'Confirm' ? 550 : 320;
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  ghostState = current; // Registrar la nueva posición virtual del cursor
+  showDebug(`Fantasma: ¡Texto '${cleanText}' ingresado!`);
 }
